@@ -19,23 +19,25 @@ Options:
 
 
 # Import standard modules:
-#import sys
-#import re
-#import math
-#import pickle
-#import operator
-#import itertools
-#import collections
+import sys
+import os
+import re
+import math
+import pickle
+import operator
+import itertools
+import subprocess
+import collections
 
-#from functools import partial
-#from multiprocessing import Pool
-#from multiprocessing.dummy import Pool as ThreadPool
+from functools import partial
+from multiprocessing import Pool
+from multiprocessing.dummy import Pool as ThreadPool
 
 # Import third-party modules:
 from docopt import docopt
-#import HTSeq as hts
-#import pandas as pd
-#import numpy as np
+import HTSeq as hts
+import pandas as pd
+import numpy as np
 
 # Import SPECtre modules:
 #from utils import *

@@ -15,9 +15,9 @@
 """
 
 # Import standard libraries:
+from multiprocessing import Pool
 import itertools
 import operator
-from multiprocessing import Pool
 
 # Import third-party libraries:
 import pandas as pd
@@ -27,13 +27,64 @@ import numpy as np
 ###########
 # GENERAL #
 ###########
+def convert_coordinates(coords=None):
+    """ Convert a string of positional coordinates into a list of integers.
+
+    Takes a comma-delimited string of positional coordinates, and converts them into
+    a list() of integers.
+
+    """
+    assert coords is not None, 'Missing coordinates for conversion'
+    try:
+        converted = [int(pos) for pos in coords.split(',') if pos.isdigit()]
+        if not converted:
+            raise ValueError('Conversion of coordinates failed')
+    except ValueError:
+        return None
+    return converted
+
+def collapse_chain_to_ranges(chain=None):
+    """ Convert a list of integer coordinates to a delimited list of start/end pairs.
+
+    From a list() of positional coordinates, convert to a delimited list of tuples()
+    defined as consecutive start and end coordinates.
+
+    """
+    assert chain is not None, 'Missing coordinate chain for conversion'
+    try:
+        ranges = list()
+        for key, group in itertools.groupby(enumerate(chain), lambda i: i[0]-i[1]):
+            group = list(map(operator.itemgetter(1), group))
+            ranges.append((group[0], group[-1])) if len(group) > 1 else ranges.append(group[0])
+        if not ranges:
+            raise ValueError('Coordinate chain collapse failed')
+    except ValueError:
+        return None
+    return ranges
+
+def expand_exons_to_chain(exons=None):
+    """ Convert a list of start/end coordinate pairs into a chain.
+
+    From a delimited list() of paired (start, end) tuples(), expand the (start, end)
+    tuples into a list() of consecutive integer coordinates.
+
+    """
+    assert exons is not None, 'Missing exons for chain expansion'
+    try:
+        chain = list(itertools.chain(*[list(range(start, end+1)) for start, end in exons]))
+        if not chain:
+            raise ValueError('Exon chain expansion error')
+    except ValueError:
+        return None
+    return chain
+
+
 def load_alignment_file(infile=None):
     """ Load a BAM format alignment file into an HTSeq.BAM_Reader() object.
 
     asdf
 
     """
-    if 
     try:
         if infile is not None:
             alignments = HTSeq.BAM_Reader(infile)
@@ -437,3 +488,87 @@ def posterior_probability(row=None, model=None, score=None):
     except (NameError, ValueError):
         return None
     return post
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def reorder_coordinates(region=None, row=None):
+    try:
+        if all([region is not None, row is not None]):
+            if region == 'exon_starts':
+                ordered = ','.join([str(pos) for pos in sorted([int(pos) for pos in row['exon_starts'].split(',')])])
+            if region == 'exon_ends':
+                ordered = ','.join([str(pos) for pos in sorted([int(pos) for pos in row['exon_ends'].split(',')])])
+            if not ordered:
+                raise ValueError('Coordinates could not be re-ordered based on input')
+        else:
+            raise NameError('Invalid coordinates input')
+    except (NameError, ValueError):
+        return None
+    return ordered
+
+def map_gene_name(mappings=None, row=None):
+    # Maps UCSC identifiers to a designated gene identifier and symbol:
+    try:
+        if all([mappings is not None, row is not None]):
+            if row.transcript_id in mappings.ucsc.values:
+                mapped = mappings.symbol[mappings.ucsc == row.transcript_id].values[0]
+                if not mapped:
+                    raise ValueError('Mapping of gene name from UCSC identifier failed')
+            else:
+                raise ValueError('Transcript identifier missing from mappings')
+        else:
+            raise NameError('Invalid mappings or missing row input')
+    except (NameError, ValueError):
+        return None
+    return mapped
+    
+def map_gene_id(mappings=None, row=None):
+    # Maps UCSC identifiers to a designated gene identifier and symbol:
+    try:
+        if all([mappings is not None, row is not None]):
+            if row.transcript_id in mappings.ucsc.values:
+                mapped = mappings.ensembl[mappings.ucsc == row.transcript_id].values[0]
+                if not mapped:
+                    raise ValueError('Mapping of gene locus from UCSC identifier failed')
+            else:
+                raise ValueError('Transcript identifier missing from mappings')
+        else:
+            raise NameError('Invalid mappings or missing row input')
+    except (NameError, ValueError):
+        return None
+    return mapped
+
+
+
+def extract_region_chain(row=None, region=None):
+    """ Calculate the length of a region using the start and end coordinates.
+
+    """
+    assert row is not None, 'Missing annotation record input'
+    assert region in ('gene','5UTR','3UTR','CDS'), 'Invalid annotaton region input'
+    try:
+        if region == 'gene':
+            region_chain = expand_exons_to_chain(list(zip(convert_coordinates(row.exon_starts),
+                convert_coordinates(row.exon_ends))))
+        if region in ('5UTR','CDS','3UTR'):
+            region_chain = expand_exons_to_chain(list(zip(convert_coordinates(row.utr5_starts),
+                convert_coordinates(row.utr5_ends))))
+        if not region_chain:
+            raise ValueError('Chain extraction failure')
+    except ValueError:
+        return None
+    return region_chain
